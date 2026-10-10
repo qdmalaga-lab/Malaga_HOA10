@@ -1,0 +1,63 @@
+---
+- name: install elasticsearch
+  package:
+    name: elasticsearch
+    state: present
+
+- name: set vm.max_map_count required by elasticsearch
+  sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: allow elasticsearch HTTP port from the lab network (Ubuntu)
+  ufw:
+    rule: allow
+    port: "9200"
+    proto: tcp
+    from_ip: 192.168.56.0/24
+  when: ansible_distribution == "Ubuntu"
+
+- name: allow elasticsearch HTTP port through firewalld (CentOS)
+  firewalld:
+    port: 9200/tcp
+    permanent: yes
+    immediate: yes
+    state: enabled
+  when: ansible_distribution == "CentOS"
+
+- name: deploy elasticsearch.yml
+  template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: elasticsearch
+    mode: 0660
+  notify: restart elasticsearch
+
+- name: set the elasticsearch JVM heap size
+  template:
+    src: heap.options.j2
+    dest: /etc/elasticsearch/jvm.options.d/heap.options
+    owner: root
+    group: elasticsearch
+    mode: 0660
+  notify: restart elasticsearch
+
+- name: apply configuration before the first start
+  meta: flush_handlers
+
+- name: start and enable elasticsearch
+  systemd:
+    name: elasticsearch
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: wait for elasticsearch to listen on port 9200
+  wait_for:
+    port: 9200
+    delay: 5
+    timeout: 180

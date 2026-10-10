@@ -1,0 +1,30 @@
+---
+- name: install kibana
+  package:
+    name: kibana
+    state: present
+
+- name: deploy kibana.yml
+  template:
+    src: kibana.yml.j2
+    dest: /etc/kibana/kibana.yml
+    owner: root
+    group: kibana
+    mode: 0660
+  notify: restart kibana
+
+- name: apply configuration before the first start
+  meta: flush_handlers
+
+- name: start and enable kibana
+  systemd:
+    name: kibana
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: wait for kibana to listen on port 5601
+  wait_for:
+    port: "{{ kibana_port }}"
+    delay: 10
+    timeout: 300

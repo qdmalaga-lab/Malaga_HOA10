@@ -1,0 +1,5 @@
+# Managed by Ansible (role: kibana)
+server.port: {{ kibana_port }}
+server.host: "0.0.0.0"
+server.name: "{{ inventory_hostname }}"
+elasticsearch.hosts: ["http://{{ hostvars[groups['elasticsearch'][0]]['ansible_host'] }}:9200"]

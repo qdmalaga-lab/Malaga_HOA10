@@ -1,0 +1,52 @@
+---
+- name: install logstash
+  package:
+    name: logstash
+    state: present
+
+- name: deploy the logstash pipeline
+  template:
+    src: main.conf.j2
+    dest: /etc/logstash/conf.d/main.conf
+    owner: root
+    group: logstash
+    mode: 0640
+  notify: restart logstash
+
+- name: open logstash ports through firewalld (CentOS)
+  firewalld:
+    port: "{{ item }}/tcp"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop:
+    - "{{ logstash_beats_port }}"
+    - "{{ logstash_tcp_port }}"
+  when: ansible_distribution == "CentOS"
+
+- name: open logstash ports from the lab network through ufw (Ubuntu)
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    from_ip: 192.168.56.0/24
+  loop:
+    - "{{ logstash_beats_port }}"
+    - "{{ logstash_tcp_port }}"
+  when: ansible_distribution == "Ubuntu"
+
+- name: apply configuration before the first start
+  meta: flush_handlers
+
+- name: start and enable logstash
+  systemd:
+    name: logstash
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: wait for logstash to listen on the tcp input port
+  wait_for:
+    port: "{{ logstash_tcp_port }}"
+    delay: 10
+    timeout: 900

@@ -1,5 +1,15 @@
 ---
-- hosts: all
+- hosts: elasticsearch
   become: true
   roles:
-    - prometheus
+    - elasticsearch
+
+- hosts: kibana
+  become: true
+  roles:
+    - kibana
+
+- hosts: logstash
+  become: true
+  roles:
+    - logstash

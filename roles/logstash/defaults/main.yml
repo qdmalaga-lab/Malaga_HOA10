@@ -1,0 +1,3 @@
+---
+logstash_beats_port: 5044
+logstash_tcp_port: 5000

@@ -1,0 +1,71 @@
+---
+- name: install prerequisites for the Elastic apt repository (Ubuntu)
+  apt:
+    name:
+      - gpg
+      - ca-certificates
+    state: present
+    update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: remove apt entries for other Elastic major versions (Ubuntu)
+  file:
+    path: "/etc/apt/sources.list.d/elastic-{{ item }}.x.list"
+    state: absent
+  loop: "{{ ['7', '8', '9'] | difference([elastic_major]) }}"
+  register: elastic_old_repos
+  when: ansible_distribution == "Ubuntu"
+
+- name: create the apt keyrings directory (Ubuntu)
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: 0755
+  when: ansible_distribution == "Ubuntu"
+
+- name: download the Elastic signing key (Ubuntu)
+  get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/GPG-KEY-elasticsearch
+    mode: 0644
+  when: ansible_distribution == "Ubuntu"
+
+- name: convert the signing key to apt keyring format (Ubuntu)
+  command: gpg --dearmor --yes -o /etc/apt/keyrings/elastic.gpg /tmp/GPG-KEY-elasticsearch
+  args:
+    creates: /etc/apt/keyrings/elastic.gpg
+  when: ansible_distribution == "Ubuntu"
+
+- name: add the Elastic apt repository (Ubuntu)
+  copy:
+    dest: "/etc/apt/sources.list.d/elastic-{{ elastic_major }}.x.list"
+    owner: root
+    group: root
+    mode: 0644
+    content: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/{{ elastic_major }}.x/apt stable main\n"
+  register: elastic_apt_repo
+  when: ansible_distribution == "Ubuntu"
+
+- name: refresh the apt cache after repository changes (Ubuntu)
+  apt:
+    update_cache: yes
+  when:
+    - ansible_distribution == "Ubuntu"
+    - elastic_apt_repo is changed or elastic_old_repos is changed
+
+- name: import the Elastic signing key (CentOS)
+  rpm_key:
+    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    state: present
+  when: ansible_distribution == "CentOS"
+
+- name: add the Elastic yum repository (CentOS)
+  yum_repository:
+    name: "elastic-{{ elastic_major }}.x"
+    description: "Elastic repository for {{ elastic_major }}.x packages"
+    baseurl: "https://artifacts.elastic.co/packages/{{ elastic_major }}.x/yum"
+    gpgcheck: yes
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    enabled: yes
+    state: present
+  when: ansible_distribution == "CentOS"

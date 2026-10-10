@@ -1,0 +1,11 @@
+# Managed by Ansible (role: elasticsearch)
+cluster.name: {{ es_cluster_name }}
+node.name: {{ inventory_hostname }}
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+network.host: 0.0.0.0
+http.port: 9200
+discovery.type: single-node
+# Lab only: security is disabled so Kibana and Logstash can connect
+# without enrollment tokens or certificates.
+xpack.security.enabled: false
